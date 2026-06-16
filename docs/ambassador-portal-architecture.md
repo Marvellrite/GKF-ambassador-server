@@ -1,425 +1,788 @@
 # GokaFoods Ambassador Portal Architecture
 
-## Overview
+# Overview
 
-The GokaFoods Ambassador Portal is a unified performance and rewards system built on three core principles:
+The GokaFoods Ambassador Portal is a unified performance, competition, analytics, and financial management ecosystem built around a recurring monthly growth economy.
 
-- **Commerce Layer:** real-world earnings from referrals, conversions, and GMV.
-- **Competition Layer:** seasonal gamified ranking system based on 2-week cycles.
-- **Insight Layer:** analytics and optimization tools.
+The system is built on four foundational layers:
 
-The system is designed as a cycle-based competitive economy where ambassadors:
+* **Commerce Layer:** Earnings generated from referrals, conversions, and attributed GMV.
+* **Competition Layer:** Monthly ranking system that rewards top-performing ambassadors.
+* **Insight Layer:** Analytics and optimization tools that help ambassadors improve performance.
+* **Finance Layer:** Ambassador wallet management, bank withdrawals, and internal transfers.
+
+The platform is designed as a repeatable engagement cycle.
 
 ```text
-Compete -> Earn -> Improve -> Reset -> Compete again
+Compete → Earn → Improve → Reward → Reset → Repeat
 ```
 
-## Core Architecture Model
+---
 
-### Data Processing Pipeline
+# Core Principles
 
-All ambassador data follows a strict backend flow:
+The system intentionally separates three concepts:
 
 ```text
-Raw Data -> Computation Layer -> Response DTO
+Competition Score → Determines Rank
+
+Rank → Determines Reward Percentage
+
+Cycle Revenue → Determines Reward Amount
 ```
 
-### Raw Data
+These are independent systems working together.
 
-Raw data is the source of truth and is stored permanently in the database.
+---
 
-Key entities include:
+# Core Architecture Model
 
-- Users
-- Orders
-- Referrals
-- Transactions
-- Order timestamps
-- Customer attribution windows
+## Data Processing Pipeline
 
-### Computation Layer
-
-The computation layer is the business logic engine. It is responsible for:
-
-- Competition score calculation
-- Retention scoring
-- GMV aggregation within valid attribution windows
-- Conversion rate calculation
-- Ranking generation
-- Reward eligibility
-
-This logic should be centralized in the Competition Service layer.
-
-### Response DTO
-
-The backend returns structured, frontend-ready data:
-
-- **Raw metrics:** used for transparency.
-- **Computed metrics:** used for consistent business logic.
-- **Display metrics:** used for UI rendering.
-
-## Key System Rules
-
-### 1. Attribution Window Rule
-
-Each referred customer is linked to an ambassador for a limited attribution window:
-
-- First 90 days, or
-- First 5 orders,
-- Whichever comes first.
-
-After the attribution window expires:
-
-- GMV is no longer tracked for that ambassador.
-- Retention is no longer tracked for that ambassador.
-- Analytics visibility for that customer ends for that ambassador.
-- The customer becomes a system-wide independent user.
-
-This ensures fairness and prevents long-term passive advantage.
-
-### 2. Retention System
-
-Retention does not modify GMV. It is a separate reward layer based on a bonus bucket model.
-
-#### Retention Scoring
-
-| Order Number | Points |
-| --- | ---: |
-| 2nd order | 10 |
-| 3rd order | 15 |
-| 4th order | 20 |
-| 5th order | 25 |
-
-After the 5th order, no further retention rewards are awarded.
-
-#### Final Score Composition
+All ambassador data follows a strict processing pipeline.
 
 ```text
-Total Competition Score =
+Raw Data
+    ↓
+Computation Layer
+    ↓
+Response DTO
+    ↓
+UI Rendering
+```
+
+---
+
+# Raw Data Layer
+
+The Raw Data Layer is the system source of truth.
+
+Entities include:
+
+* Users
+* Orders
+* Referrals
+* Transactions
+* Wallet Transactions
+* Competition Cycles
+* Attribution Windows
+* Customer Events
+* Withdrawal Records
+
+---
+
+# Computation Layer
+
+The Computation Layer is the business engine.
+
+Responsibilities include:
+
+* Competition score calculation
+* Rank generation
+* Reward calculation
+* Revenue aggregation
+* GMV aggregation
+* Retention scoring
+* Conversion calculations
+* Attribution validation
+* Wallet balance computation
+* Reward projection generation
+
+This logic is centralized within the Competition Service.
+
+---
+
+# Response DTO Layer
+
+Responses are grouped into three categories.
+
+## Raw Metrics
+
+Used for transparency.
+
+Examples:
+
+* Referrals
+* Revenue
+* Orders
+* Wallet balances
+
+---
+
+## Computed Metrics
+
+Used for business logic.
+
+Examples:
+
+* Competition score
+* Rank
+* Conversion rate
+* Retention score
+* Reward eligibility
+
+---
+
+## Projection Metrics
+
+Used for user guidance.
+
+Examples:
+
+* Estimated reward
+* Rank movement
+* Progress to next rank
+* Growth opportunities
+
+---
+
+# Key System Rules
+
+# 1. Attribution Window Rule
+
+Every referred customer belongs to an ambassador for a limited period.
+
+The attribution window expires after:
+
+* 90 days
+* OR 5 orders
+
+Whichever occurs first.
+
+After expiry:
+
+* GMV attribution stops
+* Retention scoring stops
+* Analytics visibility ends
+* Customer becomes platform-owned
+
+This prevents permanent customer ownership.
+
+---
+
+# 2. Retention System
+
+Retention is a separate bonus scoring system.
+
+Retention does not modify GMV.
+
+Only orders 2–5 qualify.
+
+| Order | Points |
+| ----: | -----: |
+|     2 |     10 |
+|     3 |     15 |
+|     4 |     20 |
+|     5 |     25 |
+
+After the fifth order:
+
+```text
+No additional retention points are awarded.
+```
+
+---
+
+# 3. Competition Score Formula
+
+```text
+Competition Score =
 Referral Score +
 Conversion Score +
 GMV Score +
-Retention Bonus Score
+Retention Score
 ```
 
-There are no multipliers, no hidden inflation, and no opaque scoring rules.
+No hidden multipliers exist.
 
-### 3. GMV Scoring Rule
+Everything is transparent.
 
-GMV is calculated strictly within the attribution window.
+---
 
-Example scoring:
+# 4. GMV Rule
+
+Only attributed orders contribute to GMV.
+
+Example:
 
 ```text
-NGN 1,000 GMV = 1 point
+NGN 1,000 GMV = 1 Point
 ```
 
-Only the first 5 orders or the first 90 days count. After expiry, the GMV is excluded completely.
+GMV tracking ends after:
 
-### 4. Competition System
+* 90 days
+* OR 5 orders
 
-#### Cycle Definition
+Whichever comes first.
 
-- Duration: 2 weeks
-- Rankings reset after cycle completion
-- Each new cycle starts with fresh rankings
+---
 
-#### Rewards Distribution
+# Monthly Competition System
 
-| Rank | Reward |
-| ---: | ---: |
-| 1st | NGN 150,000 |
-| 2nd | NGN 100,000 |
-| 3rd | NGN 70,000 |
-| 4th | NGN 50,000 |
-| 5th | NGN 30,000 |
+## Competition Cycle
 
-#### Boost Tiers
+Competition operates on a monthly basis.
 
-| Rank Range | Boost |
-| --- | --- |
-| 6-11 | 10% commission boost for the next cycle only |
-| 12-50 | 5% commission boost for the next cycle only |
+Rules:
 
-### 5. Earnings Multiplier Rule
+* Duration: 1 calendar month
+* Rankings reset every month
+* Historical records remain available
 
-- Boosts apply only to the next cycle.
-- Boosts are not permanent.
-- Boosts do not stack infinitely.
-- Each cycle recalculates from scratch.
+Competition lifecycle:
 
-## Portal Structure
+```text
+Month Start
+      ↓
+Competition Active
+      ↓
+Leaderboard Locked
+      ↓
+Rewards Distributed
+      ↓
+Monthly Reset
+```
 
-### 1. Ambassador Dashboard
+---
 
-The dashboard provides a single performance snapshot.
+# Monthly Reward System
 
-Displays:
+# Reward Philosophy
 
-- Current competition rank
-- Live competition score
-- Cycle-based referrals
-- Conversions
-- GMV within valid attribution windows
-- Retention bonus
-- Earnings summary
-- Active commission boost
-- Time left in the current cycle
-- Progress to next rank
+Rewards are dynamic.
 
-Backend endpoint:
+There are no fixed prize pools.
+
+Top performers receive a percentage increase on the revenue they generated during the competition cycle.
+
+---
+
+# Reward Formula
+
+```text
+Competition Reward =
+Cycle Revenue × Rank Percentage
+```
+
+---
+
+# Reward Distribution
+
+| Rank | Percentage |
+| ---: | ---------: |
+|    1 |        10% |
+|    2 |         8% |
+|    3 |         6% |
+|    4 |         4% |
+|    5 |         2% |
+
+Only the Top 5 ambassadors receive rewards.
+
+---
+
+# Revenue Definition
+
+```text
+Cycle Revenue =
+All eligible earnings generated during the current competition month
+```
+
+Eligible revenue includes:
+
+* Referral commissions
+* Conversion commissions
+* GMV commissions
+* Approved ambassador incentives
+
+Excluded:
+
+* Previous cycle earnings
+* Previous competition rewards
+* Historical wallet balances
+* Manual adjustments
+
+---
+
+# Reward Projection System
+
+Reward projection is dynamic.
+
+It should never be presented as a guaranteed reward.
+
+Formula:
+
+```text
+Estimated Reward =
+Cycle Revenue × Reward Percentage(Current Rank)
+```
+
+Rewards may increase or decrease throughout the month.
+
+---
+
+# Financial System Boundaries
+
+Three systems exist.
+
+```text
+Ambassador Wallet System (This Project)
+                 |
+       ---------------------
+       |                   |
+       ↓                   ↓
+Personal Bank      GKF Consumer Wallet
+(External)         (Separate Project)
+```
+
+---
+
+# Wallet Ownership Rules
+
+# Ambassador Wallet
+
+The Ambassador Wallet is an earnings wallet.
+
+Funds belong to the ambassador.
+
+Sources include:
+
+* Referral commissions
+* Conversion commissions
+* GMV commissions
+* Competition rewards
+* Approved incentives
+
+Ambassadors can:
+
+* View balances
+* Withdraw to personal bank accounts
+* Transfer funds to a GKF Consumer Wallet
+
+Ambassadors cannot:
+
+* Transfer to other ambassadors
+* Modify balances directly
+* Reverse completed withdrawals
+
+---
+
+# GKF Consumer Wallet
+
+The Consumer Wallet is a separate system.
+
+This project only supports internal transfers into it.
+
+The Consumer Wallet:
+
+* Cannot withdraw to personal banks
+* Cannot transfer back to Ambassador Wallets
+
+Its purpose is platform consumption.
+
+Flow:
+
+```text
+Ambassador Wallet
+        ↓
+Consumer Wallet
+        ↓
+Food Orders
+```
+
+No reverse flow exists.
+
+```text
+Consumer Wallet
+       X
+Personal Bank
+```
+
+---
+
+# Portal Structure
+
+# 1. Ambassador Dashboard
+
+Purpose:
+
+Provide a single performance snapshot.
+
+Endpoint:
 
 ```http
 GET /ambassador/dashboard
 ```
 
-### 2. Competition Center
+Displays:
 
-The Competition Center is the core gamification engine.
+## Competition
 
-#### Live Competition
+* Current rank
+* Competition score
+* Rank movement
+* Time remaining
 
-- Real-time leaderboard
-- User rank highlight
-- Prize tiers
-- Boost tiers
-- Cycle countdown
+## Performance Metrics
 
-#### Competition History
+* Monthly referrals
+* Monthly conversions
+* Conversion rate
+* Monthly GMV
+* Retention bonus
 
-- Past cycle rankings
-- Score snapshots
-- Reward history
+## Revenue
 
-#### Competition Detail
+* Revenue generated this cycle
+* Wallet balance
+* Pending earnings
 
-Shows a full breakdown of a selected cycle:
+## Reward Projection
 
-- Referral score
-- Conversion score
-- GMV score
-- Retention bonus
-- Final rank
+* Estimated reward
+* Current reward percentage
+* Reward stability
 
-#### Comparison View
+## Growth
 
-Compares performance across cycles.
+* Progress to next rank
+* Growth opportunities
+* Customer health indicators
 
-| Metric | Cycle N-2 | Cycle N-1 | Current | Change |
-| --- | ---: | ---: | ---: | ---: |
-| Rank | 5 | 3 | 2 | +3 |
-| Score | 12,400 | 14,100 | 15,600 | +26% |
-| GMV | NGN 380k | NGN 460k | NGN 510k | +34% |
+---
 
-Backend endpoints:
+# 2. Competition Center
+
+Purpose:
+
+Competition management and history.
+
+Displays:
+
+## Live Competition
+
+* Leaderboard
+* Current rank
+* Competition score
+* Revenue generated
+* Reward percentages
+* Estimated rewards
+* Countdown
+
+## Competition History
+
+* Historical rankings
+* Historical rewards
+* Revenue performance
+
+## Competition Details
+
+* Referral score
+* Conversion score
+* GMV score
+* Retention score
+* Revenue generated
+* Final rank
+* Reward earned
+
+## Competition Comparison
+
+| Metric  | Previous Month | Current Month |
+| ------- | -------------: | ------------: |
+| Rank    |              5 |             2 |
+| Score   |         14,100 |        15,600 |
+| Revenue |       NGN 460k |      NGN 510k |
+
+Endpoints:
 
 ```http
 GET /competition/current
+
 GET /competition/history
+
 GET /competition/:id
+
 GET /competition/compare
 ```
 
-### 3. Leaderboard System
+---
 
-#### Public Leaderboard
+# 3. Leaderboard System
 
-The public leaderboard is used for marketing visibility.
+## Public Leaderboard
 
-Includes:
+Displays:
 
-- Top ambassadors only
-- Rank
-- Total competition score
-- Basic stats
+* Top ambassadors
+* Rank
+* Competition score
 
-Does not include:
+Does not display:
 
-- Full scoring breakdown
-- Earnings visibility
+* Earnings
+* Revenue breakdown
+* Wallet information
 
-#### Internal Leaderboard
+---
 
-The internal portal leaderboard includes:
+## Internal Leaderboard
 
-- Complete ranking list
-- Pagination
-- Current user highlight
-- Cycle filters
+Displays:
 
-Backend endpoints:
+* Full rankings
+* User highlight
+* Pagination
+* Monthly filters
+
+Endpoints:
 
 ```http
 GET /leaderboard/public
+
 GET /leaderboard/internal?competitionId=
 ```
 
-### 4. Analytics Hub
+---
 
-The Analytics Hub is the performance optimization layer.
+# 4. Analytics Hub
 
-Metrics:
+Purpose:
 
-- Referral trends
-- Conversion efficiency
-- GMV trends
-- Retention behavior
-- Earnings trends
-- Cycle performance comparison
+Performance optimization.
 
-Time filters:
+Displays:
 
-- Last 7 days
-- Last 30 days
-- Monthly views
-- Custom range
+* Referral trends
+* Conversion trends
+* GMV trends
+* Revenue trends
+* Retention trends
+* Competition comparisons
 
-Backend endpoint:
+Filters:
+
+* Last 7 days
+* Last 30 days
+* Monthly
+* Custom range
+
+Endpoint:
 
 ```http
 GET /analytics?from=&to=
 ```
 
-### 5. Referral Management
+---
+
+# 5. Referral Management
 
 Features:
 
-- Referral link generator
-- QR code
-- Referred users list
-- Conversion tracking per user
-- Referral status tracking
+* Referral link generation
+* QR codes
+* Referral tracking
+* Conversion tracking
 
 Referral statuses:
 
-- Joined
-- Ordered
-- Inactive
+* Joined
+* Ordered
+* Inactive
 
-Backend endpoints:
+Endpoints:
 
 ```http
 GET /referrals
+
 GET /referrals/list
 ```
 
-### 6. Wallet and Earnings
+---
 
-The Wallet and Earnings section provides financial tracking.
+# 6. Wallet & Financial Management
 
-Includes:
+Purpose:
 
-- Total earnings
-- Pending earnings
-- Withdrawable balance
-- Transaction history
-- Withdrawal history
-- Commission breakdown
+Manage ambassador finances.
 
-Backend endpoints:
+Features:
+
+## Wallet Summary
+
+* Available balance
+* Pending earnings
+* Withdrawable balance
+* Revenue this cycle
+
+## Transfers
+
+* Withdraw to personal bank account
+* Transfer to GKF Consumer Wallet
+
+## History
+
+* Transaction history
+* Withdrawal history
+* Competition reward history
+
+Endpoints:
 
 ```http
 GET /wallet
+
 GET /wallet/transactions
+
 GET /wallet/withdrawals
+
+GET /wallet/transfers
 ```
 
-### 7. Ambassador Levels System
+---
 
-The Ambassador Levels system handles long-term progression outside competitions.
+## Withdraw To Bank
 
-Includes:
+```http
+POST /wallet/withdraw
+```
 
-- Current level
-- Upgrade requirements
-- Commission rate changes
-- Discount eligibility
-- Order limit benefits
+Request:
 
-Backend endpoint:
+```json
+{
+  "amount": 50000,
+  "bankAccountId": "bank_123"
+}
+```
+
+---
+
+## Transfer To Consumer Wallet
+
+```http
+POST /wallet/transfer-to-consumer-wallet
+```
+
+Request:
+
+```json
+{
+  "amount": 10000
+}
+```
+
+---
+
+# 7. Ambassador Levels
+
+Long-term progression system independent of competitions.
+
+Displays:
+
+* Current level
+* Upgrade requirements
+* Commission rates
+* Benefits
+
+Endpoint:
 
 ```http
 GET /ambassador/levels
 ```
 
-### 8. Settings and Profile
+---
+
+# 8. Settings & Profile
 
 Features:
 
-- Profile management
-- Referral code
-- Payment details
-- Notifications
-- Security settings
+* Profile management
+* Payment details
+* Notifications
+* Security settings
 
-Backend endpoint:
+Endpoint:
 
 ```http
 GET /ambassador/settings
 ```
 
-## Backend Architecture
+---
 
-### Core Services
+# Backend Architecture
 
-#### 1. Competition Service
-
-The Competition Service is the central business logic service.
+## Competition Service
 
 Handles:
 
-- Score calculation
-- Ranking generation
-- Cycle management
-- Reward distribution
+* Competition scores
+* Rankings
+* Reward calculations
+* Monthly cycles
 
-#### 2. Metrics Service
+---
 
-Handles:
-
-- Raw data aggregation
-- GMV tracking
-- Attribution logic
-
-#### 3. Rewards Service
+## Metrics Service
 
 Handles:
 
-- Cash payouts
-- Commission boosts
-- Cycle reward distribution
+* Aggregations
+* Attribution validation
+* GMV calculations
 
-#### 4. Referral Service
+---
 
-Handles:
-
-- Referral tracking
-- Attribution mapping
-
-#### 5. Wallet Service
+## Rewards Service
 
 Handles:
 
-- Earnings ledger
-- Withdrawals
-- Payouts
+* Competition rewards
+* Wallet crediting
+* Reward settlements
 
-## System Philosophy
+---
 
-The system is designed as a fair seasonal economy.
+## Referral Service
 
-### Transparency
+Handles:
 
-All scoring logic is explainable and visible.
+* Referral tracking
+* Attribution management
 
-### Competition
+---
 
-Every 2 weeks is a fresh competitive reset.
+## Wallet Service
 
-### Fairness
+Handles:
 
-Attribution windows prevent long-term advantage accumulation.
+* Earnings ledger
+* Bank withdrawals
+* Consumer wallet transfers
+* Transaction history
 
-### Repeat Engagement
+---
 
-The boost system encourages continuous motivation across cycles.
+# System Philosophy
+
+## Transparency
+
+Every score, reward, and calculation is explainable.
+
+## Fairness
+
+No permanent customer ownership exists.
+
+## Sustainability
+
+Rewards scale with actual value generated.
+
+## Separation of Concerns
+
+Ambassador finances and consumer finances remain separate systems.
+
+## Competition
+
+Every month is a fresh opportunity to compete.
+
+## Continuous Engagement
+
+Monthly resets keep ambassadors active and motivated.
