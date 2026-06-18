@@ -1,242 +1,402 @@
-# Analytics Hub API Specification (Refined)
+# Analytics Hub API Specification (Refined + Multi-Temporal Architecture)
 
 ---
 
 # Overview
 
-The Analytics Hub is the **time-range based performance intelligence system** for ambassadors.
+The Analytics Hub is the **time-range based behavioral intelligence system** for ambassadors.
 
-It answers:
+It explains:
 
-> What is driving my performance, and how is it changing over time?
+> How performance is evolving, what is driving it, and how it changes over time.
 
-Unlike:
+It is strictly separated from:
 
-* Competition Center (cycle + ranking)
-* Leaderboard (position + comparison)
+* Competition Center (cycle ranking system)
+* Leaderboard (relative position system)
+* Wallet (financial state system)
 
-Analytics is strictly:
+Analytics is purely:
 
-> trend + behavior + change detection
+> behavioral + temporal + attribution-driven insights
+
+---
+
+# Core Architectural Principle (Critical Update)
+
+## The Analytics Page is INHERENTLY MULTI-TEMPORAL
+
+Unlike other modules, Analytics does NOT represent a single time window.
+
+It may simultaneously contain:
+
+* primary analysis window
+* comparison window
+* trend window
+* retention lifecycle window
+* GMV attribution window
+
+### Therefore:
+
+> ❌ There is NO single “page time range truth”
+
+---
+
+## UI Implication (Important)
+
+The analytics header MUST NOT display a date range.
+
+Instead:
+
+```text
+Analytics Overview
+```
+
+Because:
+
+> The page contains multiple independent temporal contexts.
 
 ---
 
 # Core Design Principles
 
-## 1. Time-Range Based System
+## 1. Time-Range First System (Data-Level Only)
 
-All analytics are computed within a bounded time window:
+All analytics are computed using explicit ranges.
 
-```http id="an1"
-GET /analytics?from={date}&to={date}
+```http
+GET /analytics?range=last_7_days
+GET /analytics?range=last_30_days
+GET /analytics?range=this_month
+GET /analytics?from=2026-06-01&to=2026-06-30
 ```
 
-### Optional Presets
+### Rules
 
-```http id="an2"
-GET /analytics/preset?range=7d|30d|monthly
-```
-
-or:
-
-* last_7_days
-* last_30_days
-* this_month
-* custom_range
+* Either `range` OR (`from` + `to`)
+* Never both
+* Invalid combinations → `400 Bad Request`
 
 ---
 
-## 2. No Ranking System
+## 2. No Ranking Principle
 
 Analytics MUST NOT include:
 
-* Rank
-* Leaderboard position
-* Reward tier
-* Competition standing
+* rank
+* leaderboard position
+* competition standing
+* reward tiers
+* estimated winnings
 
-It is strictly non-competitive.
+Analytics is observational, not competitive.
 
-```text id="an3"
-Analytics = performance movement
-NOT competition position
+---
+
+## 3. Backend-Owned Computation Rule
+
+Frontend must NEVER compute:
+
+* deltas
+* percentages
+* comparisons
+* trends
+* aggregation
+* GMV calculations
+* retention scoring
+
+All values are precomputed DTOs.
+
+---
+
+## 4. Standard Metric Contract
+
+All scalar metrics follow:
+
+```ts
+interface AnalyticsMetric {
+  value: number;
+  previousValue?: number;
+  delta?: number;
+  changePercent?: number;
+}
 ```
 
 ---
 
-## 3. Trend-Based Rule (Core Requirement)
-
-Every metric MUST include:
-
-* current value
-* previous value
-* percentage change
-* direction (implicit or explicit)
+# 5. Key Terminology Clarification
 
 ---
 
-# API Endpoints
+## 5.1 Qualified Competition GMV
 
-```http id="ep1"
-GET /analytics?from=&to=
+```text
+qualifiedCompetitionGMV =
+    GMV generated within competition cycle
+    AND
+    satisfying attribution rules
+```
 
-GET /analytics/preset?range=7d|30d|monthly
+### Attribution Rules:
 
-GET /analytics/comparison?from=&to=&compareFrom=&compareTo=
+* 90-day attribution window
+* max 5 orders per customer
+* excludes refunds/reversals
+* must be properly attributed
+
+---
+
+### Distinction
+
+| Metric                  | Meaning                          |
+| ----------------------- | -------------------------------- |
+| qualifiedCompetitionGMV | cycle + attribution filtered GMV |
+| lifetimeAttributedGMV   | all-time attribution GMV         |
+
+---
+
+## 5.2 Competition Commission
+
+Represents:
+
+> Earnings generated within a competition cycle.
+
+NOT wallet balance.
+
+NOT withdrawable funds.
+
+---
+
+## 5.3 Comparison Model
+
+There are TWO layers:
+
+### A. Implicit Comparison (default)
+
+Each metric includes:
+
+* value
+* previousValue
+* delta
+* changePercent
+
+Compares:
+
+> current range vs previous equivalent range
+
+---
+
+### B. Explicit Comparison (separate endpoint)
+
+Two independent windows compared via `/analytics/comparison`.
+
+---
+
+## 5.4 Multi-Temporal Page Model (NEW)
+
+Every analytics page contains multiple time contexts:
+
+| Context                | Purpose              |
+| ---------------------- | -------------------- |
+| Primary Range          | main dataset         |
+| Comparison Range       | delta analysis       |
+| Trend Range            | time series          |
+| Retention Window       | lifecycle analysis   |
+| GMV Attribution Window | revenue intelligence |
+
+---
+
+# API DESIGN OVERVIEW
+
+## Endpoints
+
+```http
+GET /analytics
+GET /analytics/trends
+GET /analytics/comparison
 ```
 
 ---
 
-# 1. Full Analytics Overview
+# 1. Analytics Overview
 
 ## Purpose
 
-Provides a **complete performance snapshot** within a time range.
+Returns performance metrics for a selected time range.
+
+Supports partial metric selection via `include`.
 
 ---
 
 ## Request
 
-```http id="req1"
-GET /analytics?from=2026-06-01&to=2026-06-16
+```http
+GET /analytics?range=last_30_days&include=all&compare=true
 ```
 
 ---
 
-## Response
+## Response (NO HEADER DATE USED)
 
-```json id="res1"
+```json
 {
-  "range": {
-    "from": "2026-06-01T00:00:00Z",
-    "to": "2026-06-16T23:59:59Z"
+  "meta": {
+    "primaryRange": {
+      "from": "2026-06-01T00:00:00Z",
+      "to": "2026-06-30T23:59:59Z"
+    },
+
+    "comparisonRange": {
+      "enabled": true,
+      "from": "2026-05-02T00:00:00Z",
+      "to": "2026-05-31T23:59:59Z"
+    },
+
+    "generatedAt": "2026-06-30T20:15:11Z"
   },
 
-  "referrals": {
-    "value": 48,
-    "previousValue": 35,
-    "changePercent": 37.1
-  },
+  "data": {
+    "referrals": {
+      "value": 48,
+      "previousValue": 35,
+      "delta": 13,
+      "changePercent": 37.1
+    },
 
-  "conversions": {
-    "value": 22,
-    "previousValue": 18,
-    "changePercent": 22.2,
-    "conversionRate": 45.8
-  },
+    "conversions": {
+      "value": 22,
+      "previousValue": 18,
+      "delta": 4,
+      "changePercent": 22.2,
+      "conversionRate": 45.8
+    },
 
-  "gmv": {
-    "value": 1250000,
-    "previousValue": 980000,
-    "changePercent": 27.5
-  },
+    "qualifiedCompetitionGMV": {
+      "value": 1250000,
+      "previousValue": 980000,
+      "delta": 270000,
+      "changePercent": 27.5
+    },
 
-  "revenue": {
-    "value": 380000,
-    "previousValue": 310000,
-    "changePercent": 22.5
-  },
+    "competitionCommission": {
+      "value": 380000,
+      "previousValue": 310000,
+      "delta": 70000,
+      "changePercent": 22.5
+    },
 
-  "retention": {
-    "points": 220,
-    "previousPoints": 180,
-    "changePercent": 22.2
+    "retention": {
+      "value": 220,
+      "previousValue": 180,
+      "delta": 40,
+      "changePercent": 22.2
+    }
   }
 }
 ```
 
 ---
 
-## UI Display
+## UI DISPLAY RULES
 
-### Header
+### Header (IMPORTANT CHANGE)
 
-```text id="ui1"
+```text
 Analytics Overview
+```
 
-Jun 01 – Jun 16
+(No date shown)
+
+---
+
+### Primary Range Indicator
+
+```text
+Primary Period
+Jun 01 – Jun 30
 ```
 
 ---
 
-### Referrals
+### Comparison Indicator (if enabled)
 
-```text id="ui2"
+```text
+Compared With
+May 01 – May 31
+```
+
+---
+
+### Metrics UI
+
+```text
 48 Referrals
 ↑ +37.1%
 Previous: 35
 ```
 
----
-
-### Conversions
-
-```text id="ui3"
+```text
 22 Conversions
+45.8% Conversion Rate
 ↑ +22.2%
-Conversion Rate: 45.8%
-Previous: 18
 ```
 
----
-
-### GMV
-
-```text id="ui4"
-₦1,250,000
+```text
+₦1,250,000 GMV
 ↑ +27.5%
-Previous: ₦980,000
 ```
 
----
-
-### Revenue
-
-```text id="ui5"
-₦380,000
+```text
+₦380,000 Commission
 ↑ +22.5%
-Previous: ₦310,000
 ```
 
----
-
-### Retention
-
-```text id="ui6"
-220 Points
+```text
+220 Retention Points
 ↑ +22.2%
-Previous: 180
 ```
 
 ---
 
-# 2. Trend Analytics (Time Series)
+# 2. Trend Analytics
 
 ## Purpose
 
-Shows **behavioral movement over time**, not summaries.
+Time-series visualization only.
+
+---
+
+## Request
+
+```http
+GET /analytics/trends?range=last_30_days&metric=all&granularity=daily
+```
 
 ---
 
 ## Response
 
-```json id="res2"
+```json
 {
+  "meta": {
+    "granularity": "daily"
+  },
+
   "trend": {
     "referrals": [
-      { "date": "2026-06-10", "value": 5 },
-      { "date": "2026-06-11", "value": 7 },
-      { "date": "2026-06-12", "value": 6 }
+      { "date": "2026-06-10", "value": 5 }
     ],
 
     "conversions": [
-      { "date": "2026-06-10", "value": 2 },
-      { "date": "2026-06-11", "value": 3 }
+      { "date": "2026-06-10", "value": 2 }
     ],
 
-    "gmv": [
-      { "date": "2026-06-10", "value": 120000 },
-      { "date": "2026-06-11", "value": 180000 }
+    "qualifiedCompetitionGMV": [
+      { "date": "2026-06-10", "value": 120000 }
+    ],
+
+    "competitionCommission": [
+      { "date": "2026-06-10", "value": 32000 }
     ]
   }
 }
@@ -244,289 +404,185 @@ Shows **behavioral movement over time**, not summaries.
 
 ---
 
-## UI Display
+## UI
 
-```text id="ui7"
-Referral Trend
-5 → 7 → 6 → 8 → 9
-
-Conversion Trend
-2 → 3 → 2 → 4
-
-GMV Trend
-₦120k → ₦180k → ₦160k → ₦210k
+```text
+Referral Trend → chart
+Conversion Trend → chart
+GMV Trend → chart
+Commission Trend → chart
 ```
 
 ---
 
 # 3. Retention Analytics
 
-## Purpose
+## IMPORTANT FIX: Unified Structure
 
-Tracks **customer lifecycle progression behavior**.
+Retention ALWAYS returns full structure.
+
+### Request
+
+```http
+GET /analytics?range=last_30_days&include=retention
+```
 
 ---
 
-## Response
+### Response
 
-```json id="res3"
+```json
 {
   "retention": {
-    "order2": 4,
-    "order3": 3,
-    "order4": 2,
-    "order5": 5,
-    "retentionScoreContribution": 220
+    "score": 220,
+
+    "breakdown": {
+      "secondOrder": {
+        "customers": 4,
+        "qualifiedOrders": 4
+      },
+      "thirdOrder": {
+        "customers": 3,
+        "qualifiedOrders": 3
+      },
+      "fourthOrder": {
+        "customers": 2,
+        "qualifiedOrders": 2
+      },
+      "fifthOrder": {
+        "customers": 5,
+        "qualifiedOrders": 5
+      }
+    }
   }
 }
 ```
 
 ---
 
-## UI Display
+## UI
 
-```text id="ui8"
-Retention Breakdown
+```text
+Retention Progress
 
-2nd Orders → 4 customers
-3rd Orders → 3 customers
-4th Orders → 2 customers
-5th Orders → 5 customers
+2nd Orders → 4 Customers
+3rd Orders → 3 Customers
+4th Orders → 2 Customers
+5th Orders → 5 Customers
 
-Retention Score: 220 pts
+Retention Score: 220 Points
 ```
 
 ---
 
-# 4. Revenue Analytics
+# 4. Qualified GMV Breakdown
 
-## Purpose
+## Request
 
-Tracks earnings movement over time (financial intelligence only).
+```http
+GET /analytics?include=qualifiedGMV
+```
 
 ---
 
 ## Response
 
-```json id="res4"
+```json
 {
-  "revenue": {
-    "current": 380000,
-    "previous": 310000,
-    "changePercent": 22.5,
-
-    "pending": 65000,
-    "withdrawable": 1185000
-  }
+  "qualifiedCompetitionGMV": 1250000,
+  "lifetimeAttributedGMV": 4300000
 }
 ```
 
 ---
 
-## UI Display
-
-```text id="ui9"
-Revenue Performance
-
-₦380,000
-↑ +22.5%
-Previous: ₦310,000
-
-Pending
-₦65,000
-
-Withdrawable
-₦1,185,000
-```
-
----
-
-# 5. GMV Analytics (Attribution-Based)
+# 5. Explicit Comparison API
 
 ## Purpose
 
-Separates:
-
-* competition-qualified GMV
-* full attributed GMV
-
----
-
-## Response
-
-```json id="res5"
-{
-  "gmv": {
-    "competitionGMV": 1250000,
-    "attributedGMV": 4300000
-  }
-}
-```
-
----
-
-## UI Display
-
-```text id="ui10"
-Competition GMV
-₦1,250,000
-
-Attributed GMV
-₦4,300,000
-```
-
----
-
-# 6. Analytics Comparison Mode
-
-## Purpose
-
-Compare two time ranges.
+Compares two independent time windows.
 
 ---
 
 ## Request
 
-```http id="req2"
-GET /analytics/comparison?from=&to=&compareFrom=&compareTo=
+```http
+GET /analytics/comparison
+?from=2026-06-01&to=2026-06-30
+&compareFrom=2026-05-01&compareTo=2026-05-31
 ```
 
 ---
 
 ## Response
 
-```json id="res6"
+```json
 {
   "current": {
     "referrals": 48,
     "conversions": 22,
-    "gmv": 1250000,
-    "revenue": 380000
+    "qualifiedCompetitionGMV": 1250000,
+    "competitionCommission": 380000
   },
 
   "previous": {
     "referrals": 35,
     "conversions": 18,
-    "gmv": 980000,
-    "revenue": 310000
+    "qualifiedCompetitionGMV": 980000,
+    "competitionCommission": 310000
   },
 
   "delta": {
     "referrals": 13,
     "conversions": 4,
-    "gmv": 270000,
-    "revenue": 70000
+    "qualifiedCompetitionGMV": 270000,
+    "competitionCommission": 70000
   }
 }
-```
-
----
-
-## UI Display
-
-```text id="ui11"
-Comparison
-
-Referrals
-35 → 48 (+13)
-
-Conversions
-18 → 22 (+4)
-
-GMV
-₦980,000 → ₦1,250,000 (+₦270,000)
-
-Revenue
-₦310,000 → ₦380,000 (+₦70,000)
-```
-
----
-
-# Analytics Hub UI Layout
-
-```text id="ui12"
-Analytics Hub
-
-Date Filter
-[7D] [30D] [Monthly] [Custom]
-
---------------------------------------
-
-Performance Overview
-Referrals
-Conversions
-GMV
-Revenue
-Retention
-
---------------------------------------
-
-Trend Charts
-Referral Trend
-Conversion Trend
-GMV Trend
-
---------------------------------------
-
-Retention Analysis
-Order Lifecycle Behavior
-
---------------------------------------
-
-Revenue Insights
-Pending vs Withdrawable
-
---------------------------------------
-
-GMV Attribution
-Competition GMV
-Attributed GMV
 ```
 
 ---
 
 # Backend Responsibilities
 
-The backend MUST:
-
-* Aggregate time-range metrics
-* Compute previous period comparisons
-* Normalize attribution rules
-* Ensure consistent revenue definitions
-* Generate time-series datasets
-* Enforce filter correctness across all endpoints
+* Compute all metrics
+* Apply attribution rules
+* Generate comparison datasets
+* Generate trends
+* Normalize DTO structure
+* Enforce consistency across include modes
 
 ---
 
 # Frontend Responsibilities
 
-The frontend MUST:
-
-* Render only backend-provided values
-* Perform no aggregation or calculation
-* Use trends strictly as display data
-* Use delta values as authoritative
+* Render only backend data
+* No computations
+* No assumptions about time windows
+* Use meta ranges explicitly for labeling
 
 ---
 
-# Key System Insight
+# FINAL SYSTEM INSIGHT
 
 Analytics is NOT:
 
-* ranking
-* competition
-* leaderboard
+* a single timeline dashboard
+* a competition tool
+* a wallet system
 
 Analytics IS:
 
-> a behavioral microscope over time
+> a multi-temporal behavioral intelligence engine
 
-It explains:
+It simultaneously analyzes:
 
-* why performance changed
-* how performance evolved
-* what is accelerating or declining
+* primary performance window
+* comparative performance window
+* temporal trends
+* lifecycle retention
+* attribution-based GMV
 
-Not:
+There is NO single time truth per page.
 
-* where you stand in competition
+Only structured temporal contexts.
