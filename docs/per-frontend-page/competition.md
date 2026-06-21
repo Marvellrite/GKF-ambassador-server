@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Competition Center is the authenticated ambassador’s competition intelligence system.
+The Competition Center is the authenticated ambassador's competition intelligence system.
 
 It provides:
 
@@ -34,12 +34,14 @@ Cycle: Jun 01 – Jun 30
 ## 2. Financial Naming Standard
 
 | Old Name     | New Name              |
-| ------------ | --------------------- |
+| -------------- | ------------------------ |
 | totalRevenue | competitionCommission |
 
 Competition Commission represents:
 
 > Ambassador earnings from the competition cycle only
+
+> This naming standard also applies to the Wallet spec, which previously used `revenueThisCycle`/`cycleRevenue` for the same metric.
 
 ---
 
@@ -64,10 +66,18 @@ They must NEVER be merged in UI or calculations.
 
 ---
 
+## 5. Score-Breakdown Invariant (new)
+
+`referralScore + conversionScore + gmvScore + retentionScore` must always equal the `competitionScore` returned by `/competition/current`, with no exceptions and no hidden multipliers. Likewise, `gmvScore` must always equal `qualifiedCompetitionGMV / 1000` per the platform-wide GMV rule. A response where these don't reconcile is a backend defect.
+
+---
+
 # Endpoints Summary
 
 ```http
 GET /competition/current
+
+GET /competition/current/performance
 
 GET /competition/history?page=&limit=
 
@@ -92,7 +102,7 @@ GET /competition/current
 
 ## Purpose
 
-Returns ambassador’s real-time performance in the active competition cycle.
+Returns ambassador's real-time performance in the active competition cycle.
 
 ---
 
@@ -152,6 +162,8 @@ The response also includes:
 
 ## Response (With `includeBreakdown=true`)
 
+> **Fixed:** `gmvScore` and `qualifiedCompetitionGMV` corrected from `2800`/`1,250,000` to `1240`/`1,240,000`. This now satisfies the GMV rule (1,240,000 ÷ 1,000 = 1,240) *and* makes the breakdown sum to exactly 12,540 — matching `competitionScore` above without needing to change that field.
+
 Adds:
 
 ```json
@@ -159,10 +171,10 @@ Adds:
   "performance": {
     "referralScore": 4200,
     "conversionScore": 6100,
-    "gmvScore": 2800,
+    "gmvScore": 1240,
     "retentionScore": 1000,
 
-    "qualifiedCompetitionGMV": 1250000,
+    "qualifiedCompetitionGMV": 1240000,
 
     "referrals": 120,
     "conversions": 58,
@@ -237,10 +249,10 @@ Score composition is only meaningful in the context of a live ranking system.
   "performance": {
     "referralScore": 4200,
     "conversionScore": 6100,
-    "gmvScore": 2800,
+    "gmvScore": 1240,
     "retentionScore": 1000,
 
-    "qualifiedCompetitionGMV": 1250000,
+    "qualifiedCompetitionGMV": 1240000,
 
     "referrals": 120,
     "conversions": 58,
@@ -261,13 +273,13 @@ Conversion Score
 6,100
 
 GMV Score
-2,800
+1,240
 
 Retention Score
 1,000
 
 Qualified Competition GMV
-₦1,250,000
+₦1,240,000
 
 Referrals
 120
@@ -309,6 +321,8 @@ Returns past competition cycles for analysis and comparison.
 
 ## Response
 
+> **Fixed:** `rewardEarned` corrected from `18,400` to `9,200` for rank 5 (460,000 × 2% = 9,200, per the Rank → Reward Percentage table). The original example incorrectly applied the 4% tier — which belongs to rank 4 — to a rank 5 result.
+
 ```json
 {
   "history": [
@@ -322,7 +336,7 @@ Returns past competition cycles for analysis and comparison.
       "competitionScore": 14100,
 
       "competitionCommission": 460000,
-      "rewardEarned": 18400
+      "rewardEarned": 9200
     }
   ],
 
@@ -352,7 +366,7 @@ Competition Commission
 ₦460,000
 
 Reward Earned
-₦18,400
+₦9,200
 ```
 
 ---
@@ -383,6 +397,8 @@ Returns full breakdown of a specific competition cycle.
 
 ## Response
 
+> **Fixed:** `rewardTier` corrected from `4` to `2`, and `rewardEarned` from `18,400` to `9,200`, to match rank 5's actual reward percentage from the Rank → Reward Percentage table (2%, not 4%).
+
 ```json
 {
   "competition": {
@@ -400,8 +416,8 @@ Returns full breakdown of a specific competition cycle.
 
     "competitionCommission": 460000,
 
-    "rewardTier": 4,
-    "rewardEarned": 18400
+    "rewardTier": 2,
+    "rewardEarned": 9200
   }
 }
 ```
@@ -435,7 +451,7 @@ Competition Commission
 ₦460,000
 
 Reward Earned
-₦18,400
+₦9,200
 ```
 
 ---
@@ -529,6 +545,7 @@ The backend must:
 * Maintain competition snapshots
 * Resolve comparison logic
 * Enforce cycle boundaries
+* Validate that score components and reward tiers always reconcile with the documented formulas before serving a response
 
 The frontend must NOT:
 

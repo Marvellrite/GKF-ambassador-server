@@ -65,7 +65,7 @@ Attribution = customer relationship validity window
 
 ---
 
-### C. Financial Scope (Model B)
+### C. Financial Scope (Settlement Lifecycle)
 
 Real money lifecycle:
 
@@ -197,6 +197,8 @@ Participants
 
 ## Response
 
+> **Fixed:** `retention.points` corrected from `220` to `250` to match the canonical retention points table (4×10 + 3×15 + 2×20 + 5×25 = 250). The `orderBreakdown` counts themselves were already correct and are unchanged.
+
 ```json id="r2"
 {
   "performance": {
@@ -216,7 +218,7 @@ Participants
     },
 
     "retention": {
-      "points": 220,
+      "points": 250,
       "orderBreakdown": {
         "order2": 4,
         "order3": 3,
@@ -278,7 +280,7 @@ Competition GMV
 
 ```text id="ui5"
 Retention Points
-220
+250
 ```
 
 ```text id="ui6"
@@ -350,7 +352,7 @@ Near Time Limit
 
 ---
 
-### Pending (Settlement Model B)
+### Pending (Settlement Lifecycle)
 
 ```text id="ui10"
 ₦65,000
@@ -585,7 +587,7 @@ You need 630 more points
 
 ---
 
-## 3. Financial Scope (Model B)
+## 3. Financial Scope (Settlement Lifecycle)
 
 ```
 Earned → Pending → Withdrawable

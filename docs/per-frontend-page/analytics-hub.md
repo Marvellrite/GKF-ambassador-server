@@ -38,7 +38,7 @@ It may simultaneously contain:
 
 ### Therefore:
 
-> ❌ There is NO single “page time range truth”
+> ❌ There is NO single "page time range truth"
 
 ---
 
@@ -149,9 +149,11 @@ qualifiedCompetitionGMV =
 ### Distinction
 
 | Metric                  | Meaning                          |
-| ----------------------- | -------------------------------- |
+| ------------------------ | ---------------------------------- |
 | qualifiedCompetitionGMV | cycle + attribution filtered GMV |
 | lifetimeAttributedGMV   | all-time attribution GMV         |
+
+> **Architectural note:** `lifetimeAttributedGMV` is the same field as `lifetimeGMV` in the Ambassador Levels spec. Both must be sourced from one shared, append-only ledger maintained by the Metrics Service — not computed independently by the Levels Service and the Analytics Service.
 
 ---
 
@@ -164,6 +166,8 @@ Represents:
 NOT wallet balance.
 
 NOT withdrawable funds.
+
+> Note: this is the same metric the Wallet spec calls "Competition Commission" (previously a separate field named `revenueThisCycle`/`cycleRevenue` — now unified to one field name across modules).
 
 ---
 
@@ -197,12 +201,12 @@ Two independent windows compared via `/analytics/comparison`.
 Every analytics page contains multiple time contexts:
 
 | Context                | Purpose              |
-| ---------------------- | -------------------- |
-| Primary Range          | main dataset         |
-| Comparison Range       | delta analysis       |
-| Trend Range            | time series          |
-| Retention Window       | lifecycle analysis   |
-| GMV Attribution Window | revenue intelligence |
+| ------------------------ | ----------------------- |
+| Primary Range          | main dataset          |
+| Comparison Range       | delta analysis        |
+| Trend Range            | time series           |
+| Retention Window       | lifecycle analysis     |
+| GMV Attribution Window | revenue intelligence  |
 
 ---
 
@@ -237,6 +241,8 @@ GET /analytics?range=last_30_days&include=all&compare=true
 ---
 
 ## Response (NO HEADER DATE USED)
+
+> **Fixed:** `retention.value` corrected from `220` to `250` to match the canonical retention points table (4×10 + 3×15 + 2×20 + 5×25 = 250). `delta` and `changePercent` recomputed against the unchanged `previousValue` of 180.
 
 ```json
 {
@@ -286,10 +292,10 @@ GET /analytics?range=last_30_days&include=all&compare=true
     },
 
     "retention": {
-      "value": 220,
+      "value": 250,
       "previousValue": 180,
-      "delta": 40,
-      "changePercent": 22.2
+      "delta": 70,
+      "changePercent": 38.9
     }
   }
 }
@@ -352,8 +358,8 @@ Previous: 35
 ```
 
 ```text
-220 Retention Points
-↑ +22.2%
+250 Retention Points
+↑ +38.9%
 ```
 
 ---
@@ -431,25 +437,27 @@ GET /analytics?range=last_30_days&include=retention
 
 ### Response
 
+> **Fixed:** `score` corrected from `220` to `250`. Breakdown keys renamed `secondOrder`/`thirdOrder`/`fourthOrder`/`fifthOrder` → `order2`/`order3`/`order4`/`order5` to match the Ambassador Dashboard spec's naming convention for the same data.
+
 ```json
 {
   "retention": {
-    "score": 220,
+    "score": 250,
 
     "breakdown": {
-      "secondOrder": {
+      "order2": {
         "customers": 4,
         "qualifiedOrders": 4
       },
-      "thirdOrder": {
+      "order3": {
         "customers": 3,
         "qualifiedOrders": 3
       },
-      "fourthOrder": {
+      "order4": {
         "customers": 2,
         "qualifiedOrders": 2
       },
-      "fifthOrder": {
+      "order5": {
         "customers": 5,
         "qualifiedOrders": 5
       }
@@ -470,7 +478,7 @@ Retention Progress
 4th Orders → 2 Customers
 5th Orders → 5 Customers
 
-Retention Score: 220 Points
+Retention Score: 250 Points
 ```
 
 ---

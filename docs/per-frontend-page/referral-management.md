@@ -48,7 +48,7 @@ Each referral transitions through a lifecycle:
 ## States
 
 | State    | Meaning                              |
-| -------- | ------------------------------------ |
+| -------- | ------------------------------------- |
 | Joined   | User signed up via referral link     |
 | Ordered  | User completed at least one order    |
 | Inactive | No meaningful activity after joining |
@@ -209,12 +209,12 @@ Returns paginated referral entities with filtering.
 ## Query Parameters
 
 | Param  | Type   | Description     |         |          |
-| ------ | ------ | --------------- | ------- | -------- |
-| page   | number | pagination      |         |          |
-| limit  | number | page size       |         |          |
-| status | string | joined          | ordered | inactive |
-| search | string | user name/email |         |          |
-| sort   | string | newest          | oldest  |          |
+| ------ | ------ | ----------------- | ------- | -------- |
+| page   | number | pagination       |         |          |
+| limit  | number | page size         |         |          |
+| status | string | joined            | ordered | inactive |
+| search | string | user name/email  |         |          |
+| sort   | string | newest            | oldest  |          |
 
 ---
 
@@ -273,7 +273,92 @@ First Order: Jun 12
 
 ---
 
-# 3. Referral Link Generation
+# 3. Referral Effectiveness Statistics (new)
+
+## Endpoint
+
+```http
+GET /referrals/stats
+```
+
+---
+
+## Purpose
+
+Returns the deeper **effectiveness ratios** referenced under "Referral Effectiveness" above — distinct from `/referrals`, which only returns raw lifecycle counts. This is the endpoint that powers any "how good is my network, not just how big" insight on the referral page.
+
+---
+
+## Optional Query Parameters
+
+| Param | Type   | Description                         |
+| ------ | ------ | -------------------------------------- |
+| from   | date   | optional filter — start of range      |
+| to     | date   | optional filter — end of range        |
+
+> Time filtering here follows the same rule as `/referrals/list`: it's an optional overlay, never the primary dimension.
+
+---
+
+## Request
+
+```http
+GET /referrals/stats
+```
+
+---
+
+## Response
+
+```json
+{
+  "effectiveness": {
+    "conversionRate": 42.1,
+    "repeatOrderRate": 38.9,
+    "inactivityRate": 57.8
+  },
+
+  "ordersPerConvertedReferral": {
+    "average": 2.4,
+    "median": 2
+  },
+
+  "averageDaysToFirstOrder": 2.1
+}
+```
+
+---
+
+## UI PLACEMENT
+
+### Effectiveness Card
+
+```text
+Conversion Rate
+42.1%
+
+Repeat Order Rate
+38.9%
+
+Inactivity Rate
+57.8%
+```
+
+---
+
+### Behavior Insight Card
+
+```text
+Avg Orders per Converted Referral
+2.4
+
+Avg Days to First Order
+2.1 days
+```
+
+---
+
+# 4. Referral Link Generation
 
 ## Endpoint
 
@@ -312,7 +397,7 @@ Share QR
 
 ---
 
-# 4. QR Code Generation
+# 5. QR Code Generation
 
 ## Endpoint
 
@@ -361,7 +446,7 @@ Referrals are NOT inherently time-based like analytics.
 ### Difference:
 
 | System      | Time Role             |
-| ----------- | --------------------- |
+| ------------- | ------------------------ |
 | Analytics   | Primary dimension     |
 | Competition | Cycle-bound dimension |
 | Referrals   | Optional filter only  |
